@@ -1,0 +1,82 @@
+<!doctype html>
+
+<head>
+  <title>Beidou AI Disaster Control System</title>
+  <script src="/static/jquery.min.js"></script>
+  <link rel="stylesheet" href="/static/semantic.min.css">
+  <script src="/static/semantic.min.js"></script>
+</head>
+
+<body>
+  <div class="ui container" style="text-align: center;">
+    <h2>Information Board</h2>
+    <div id="info_board">
+      <p>Monitor Site: <div id="site_name"></div>
+      </p>
+      <p>Location: 45N, 117E</p>
+      <p>Online Device: <div id="device_num"></div>
+      </p>
+      <p>Events: <div id="events"></div>
+      </p>
+    </div>
+
+    <h2>Devices</h2>
+    <div class="ui container" id="devices">
+      <div id="devices_table"></div>
+      
+    </div>
+    <h2>Problematic Devices</h2>
+    <div class="ui container" id="problematic_devices">
+      <div id="problematic_devices_table"></div>
+      
+    </div>
+  </div>
+  <script>
+    // Water depth
+    // humidity
+    // illumination
+    // temperature
+    // Thermal
+    // flame
+
+    function showTable(url, id) {
+      $.getJSON(url, function (data) {
+        console.log(data)
+        var table=$("<table border=\"1\" align='center'><tr> \
+          <th>ID</th> \
+          <th>fire</th> \
+          <th>water</th> \
+          <th>temperature</th> \
+          <th>humidity</th> \
+          <th>illumination</th> \
+          <th>flame</th> \
+          <th>online</th> \
+        </tr></table>");
+        mark = $(id)
+        mark.html('')
+	      table.appendTo(mark);
+        
+        for (var i = 0; i < data.length; i++) {
+          var tr = $("<tr></tr>");
+          tr.appendTo(table);
+          for (var j = 0; j < data[i].length; j++) {
+            var td;
+            if(j == 0)
+            {
+              td = $("<td><a href='/device?id=" + data[i][j] +"'>" + data[i][j] + "</a></td>");
+            } else {
+               td = $("<td>" + data[i][j] + "</td>");
+            }
+            td.appendTo(tr);
+          }
+        }
+      });
+    }
+    function timed() {
+      showTable("/device_data", "#devices_table");
+      showTable("/problematic_devices", "#problematic_devices_table");
+      setTimeout(timed, 500);
+    }
+    timed();
+  </script>
+</body>

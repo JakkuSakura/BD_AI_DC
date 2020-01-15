@@ -1,0 +1,147 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>Device Details</title>
+</head>
+<script type="text/javascript" src="/static/Chart.min.js"></script>
+<script type="text/javascript" src="/static/jquery.min.js"></script>
+
+<body>
+    <h1>Details about device <i id="device_id"></i></h1>
+
+    <h3>Control</h3>
+    <div id="control"></div>
+    <button id="button">Dismiss Alarms</button>
+    <h3>History Infomation</h3>
+    <div id="history"></div>
+
+    <script type="text/javascript">
+        function draw(id, title, labels, data, xTip, yTip, color) {
+
+            var config = {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: xTip,
+                        fill: false,
+                        backgroundColor: color,
+                        borderColor: color,
+                        data: data,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    title: {
+                        display: true,
+                        text: title
+                    },
+                    tooltips: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    hover: {
+                        mode: 'nearest',
+                        intersect: true
+                    },
+                    scales: {
+                        xAxes: [{
+                            display: true,
+                            scaleLabel: {
+                                display: true,
+                                labelString: xTip
+                            }
+                        }],
+                        yAxes: [{
+                            display: true,
+                            scaleLabel: {
+                                display: true,
+                                labelString: yTip
+                            }
+                        }]
+                    }
+                }
+            };
+            var ctx = document.getElementById(id).getContext('2d');
+            window.myLine = new Chart(ctx, config);
+        }
+
+        function findGetParameter(parameterName) {
+            var result = null,
+                tmp = [];
+            location.search
+                .substr(1)
+                .split("&")
+                .forEach(function (item) {
+                    tmp = item.split("=");
+                    if (tmp[0] === parameterName) result = decodeURIComponent(tmp[1]);
+                });
+            return result;
+        }
+
+
+        function gen_chart(id, $insert, subject, yAxes, color) {
+            $.getJSON('/device_history', {
+                    id: id,
+                    name: subject
+                },
+                function (data) {
+                    jq = $('<canvas id="' + subject +
+                        '" style="display: block; width: 300px; height: 200px;" width="300" height="200" class="chartjs-render-monitor"></canvas>'
+                    );
+                    $insert.append(jq);
+
+                    draw(subject, subject, data['times'], data['values'], 'time', yAxes,
+                        color);
+                }
+            );
+        }
+
+        function generate_control_request(id) {
+            $.getJSON('/device_request', {
+                id: id
+            }, function (data) {
+                $("#control").html("<b>beeper: " + data.beeper + " light: " + data.light + "<b>")
+
+            });
+        }
+
+
+        function timed() {
+            machine_id = findGetParameter("id");
+            $('#device_id').text(machine_id)
+            generate_control_request(machine_id);
+
+            $history = $("#history");
+            $history.html('')
+
+            gen_chart(machine_id, $history, 'fire', 'unit', "rgb(255,0,0)");
+            gen_chart(machine_id, $history, 'water', 'unit', "rgb(0,0,255)");
+            gen_chart(machine_id, $history, 'temperature', 'degrees', "rgb(0,255,0)");
+            gen_chart(machine_id, $history, 'humidity', 'percents', "rgb(0,0,255)");
+            gen_chart(machine_id, $history, 'illumination', 'unit', "rgb(255,0,255)");
+            gen_chart(machine_id, $history, 'flame', 'unit', "rgb(128,128,255)");
+            setTimeout(timed, 20000);
+        }
+
+        $(document).ready(function () {
+            machine_id = findGetParameter("id");
+            $("#button").click(function () {
+                $.getJSON("/device_depr", {
+                    id: machine_id
+                }, function (data) {
+                    if (typeof data.error !== 'undefined')
+                        alert(data.error);
+                    else
+                        alert("Dismissed alarms");
+                });
+            });
+            timed();
+        });
+    </script>
+</body>
+
+</html>
