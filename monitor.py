@@ -20,16 +20,17 @@ class Monitor:
         self.device_list = []
         self.alive_time = 10  # seconds
         self.warn_time = 60  # seconds
-        self.depr_time = 60  # seconds
+        self.depr_time = 2  # seconds
         self.problematic_device_list = []
 
     def is_prob(self, package):
-        s = int(g(package, 'fire', 10000)) < 2000
-        # print(s)
+        s = int(g(package, 'fire', 10000)) < 2000 or int(g(package, 'water', 0)) > 2000
         return s
 
     def depr_device(self, device):
-        self.problematic_device_list.remove(device)
+        if device in self.problematic_device_list:
+            self.problematic_device_list.remove(device)
+        device.motor = False
         device.deprtime = time.time()
 
     def receive_one(self, data):
@@ -78,7 +79,7 @@ class Monitor:
         else:
             beeper = False
             light = False
-        return ControlPackage(beeper, light)
+        return ControlPackage(beeper, light, device.motor)
 
     def problematic_devices(self):
         l = []

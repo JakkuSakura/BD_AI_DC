@@ -6,6 +6,7 @@ class DeviceInfo:
         self.data = []
         self.warntime = 0
         self.deprtime = 0
+        self.motor = False
     def get_latest_package(self):
         if len(self.data):
             return self.data[-1]

@@ -29,6 +29,14 @@ def device_data():
     else:  # GET
         return json.dumps(monitor.fetch_device_list())
 
+@app.route('/run_motor')
+def run_motor():
+    machine_id = request.args.get('id')
+    device = monitor.get_device_by_id(machine_id)
+    if not device:
+        return json.dumps({'error': 'Did not find a device with the id ' + str(machine_id)})
+    device.motor = True
+    return '{}'
 
 @app.route('/problematic_devices')
 def problematic_devices():

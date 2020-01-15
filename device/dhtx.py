@@ -24,5 +24,8 @@ def get_dht_tempandhum(sensetype,pin):
 	else:
 		d = dht.DHT22(machine.Pin(pin))
 	d.measure()
-	time.sleep_ms(1)
-	return d.temperature(),d.humidity()
+	time.sleep_ms(10)
+	t = d.temperature()
+	time.sleep_ms(10)
+	h = d.humidity()
+	return t, h

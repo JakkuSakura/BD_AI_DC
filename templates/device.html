@@ -15,6 +15,7 @@
     <h3>Control</h3>
     <div id="control"></div>
     <button id="button">Dismiss Alarms</button>
+    <button id="button2">Put off</button>
     <h3>History Infomation</h3>
     <div id="history"></div>
 
@@ -144,6 +145,16 @@
                         alert(data.error);
                     else
                         alert("Dismissed alarms");
+                });
+            });
+            $("#button2").click(function () {
+                $.getJSON("/run_motor", {
+                    id: machine_id
+                }, function (data) {
+                    if (typeof data.error !== 'undefined')
+                        alert(data.error);
+                    else
+                        alert("Turned on motor");
                 });
             });
             timed();
