@@ -5,9 +5,12 @@ try:
 except:
     import requests
     import random
-
+import time
 import json
-import device.control_package
+try:
+    import control_package
+except Exception:
+    import device.control_package
 
 
 class DeviceStatusReporter:
@@ -18,32 +21,37 @@ class DeviceStatusReporter:
                 return '{:02x}{:02x}{:02x}{:02x}'.format(machine_id[0], machine_id[1], machine_id[2], machine_id[3])
             except:
                 machine_id = random.random()
-            self.machine_id = str(machine_id)
-        return str(self.machine_id)
+        else:
+            return str(self.machine_id)
 
     def __init__(self, sever):
         # print('init', id(self))
-        self.get_id()
+        self.machine_id = self.get_id()
         # self.desp = desp
         self.sever = sever
 
-    def send(self, fire='', water='', temperature='', humidity='', illumination='', flame=''):
+    def package(self, fire='', water='', temperature='', humidity='', illumination='', flame='', time_delta=0):
+        # print('now is', time.time() + time_delta)
         dct = {'machine_id': self.machine_id,
                'fire': fire,
                'water': water,
                'temperature': temperature,
                'humidity': humidity,
                'illumination': illumination,
-               'flame': flame
+               'flame': flame,
+               'time': time.time() + time_delta
                }
-        requests.post("http://" + self.sever + "/device_data",
-                      data=json.dumps(dct))
+        return dct
 
-    def send_async(self, *args, **kwargs):
-        import _thread
-        _thread.start_new_thread(self.send, (*args, *kwargs))
+    def send(self, lst):
+        return requests.post("http://" + self.sever + "/device_data",
+                             data=json.dumps(lst))
+
+    def get_clock(self):
+        return requests.get('http://' + self.sever + "/clock")
 
     def get_control(self):
-        # return device.control_package.ControlPackage.from_dict(json.loads(requests.post("http://" + self.sever + "/device_request")))
-        # fixme
-        return None
+        req = requests.get("http://" + self.sever +
+                           "/device_request?id=" + self.machine_id)
+
+        return control_package.ControlPackage.from_dict(json.loads(req.text))

@@ -20,8 +20,12 @@ monitor = monitor.Monitor()
 @app.route('/device_data', methods=["GET", "POST"])
 def device_data():
     if request.method == 'POST':
-        monitor.receive(json.loads(request.get_data().decode()))
-        return "OK"
+        dct = json.loads(request.get_data().decode())
+        monitor.receive(dct)
+        device = monitor.get_device_by_id(dct[0]['machine_id'])
+        control = monitor.calc_control(device)
+        return json.dumps(control.__dict__)
+
     else:  # GET
         return json.dumps(monitor.fetch_device_list())
 
@@ -68,6 +72,8 @@ def device_history():
             except _ as ignored:
                 pass
     return json.dumps({'times':tm, 'values': val})
-
+@app.route('/clock')
+def clock():
+    return str(time.time())
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')

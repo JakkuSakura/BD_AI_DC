@@ -1,2 +1,6 @@
 #!/bin/sh
-./ampy.sh put *.py
+for file in ./*.py
+do
+    echo Uploading $file
+    ./ampy.sh put $file
+done

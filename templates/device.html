@@ -109,6 +109,13 @@
             });
         }
 
+        function timed2() {
+            machine_id = findGetParameter("id");
+            $('#device_id').text(machine_id)
+            generate_control_request(machine_id);
+            setTimeout(timed, 1000);
+
+        }
 
         function timed() {
             machine_id = findGetParameter("id");
@@ -140,6 +147,7 @@
                 });
             });
             timed();
+            timed2();
         });
     </script>
 </body>

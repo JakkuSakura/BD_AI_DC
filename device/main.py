@@ -6,6 +6,8 @@ import _thread
 import control_package
 import device_package
 import timer
+import miot
+import json
 Fire = machine.ADC(machine.Pin(36))
 Light = machine.ADC(machine.Pin(35))
 Hot = machine.ADC(machine.Pin(39))
@@ -16,30 +18,153 @@ Hot.atten(machine.ADC.ATTN_11DB)
 Water.atten(machine.ADC.ATTN_11DB)
 i2c = machine.I2C(scl = machine.Pin(14), sda = machine.Pin(15), freq = 100000)
 oled = ssd1306.SSD1306_I2C(128,64,i2c)
-reporter = device_package.DeviceStatusReporter()
-timer = timer.Timer()
+reporter = device_package.DeviceStatusReporter("10.0.0.1:5000")
 
-def display():
-    F = Fire.read()
-    L = Light.read()
-    H = Hot.read()
-    Deep = Water.read()
-    Temp = dhtx.get_dht_temperature('dht11', 5)
-    Humi = dhtx.get_dht_relative_humidity('dht11', 5)
+time_delta = 0
+
+
+fire = 0
+light = 0
+hot = 0
+deep = 0
+temp = 0
+humi = 0
+
+oled_line_1 = "ID:" + reporter.get_id()
+oled_line_2 = "Temp:" + str(temp)
+oled_line_3 = "Humid:" + str(humi)
+oled_msg = ''
+
+def refresh_oled():
     oled.show_fill(0)
-    oled.show_str(reporter.get_id(), "Temperature:" + str(Temp),"Humidity:" + str(Humi),"Deep:" + str(Deep))
+    oled.show_str(oled_line_1, oled_line_2, oled_line_3, oled_msg)
+
+def set_oled_msg(msg):
+    global oled_msg
+    oled_msg = str(msg)
+    print(msg)
+    refresh_oled()
+
+def set_temp(temp):
+    global oled_line_2
+    oled_line_2 = "Temp:" + str(temp)
+
+def set_humid(humid):
+    global oled_line_3
+    oled_line_3 = "Humid:" + str(humid)
+
+queue = []
+def read_display_task():
+    global fire, light, hot, deep
+    fire = Fire.read()
+    light = Light.read()
+    hot = Hot.read()
+    deep = Water.read()
+
+    print("Fire", fire)
+    print("Light", light)
+    print("Hot", hot)
+    print("Deep", deep)
+    queue.append(reporter.package(fire, deep, temp, humi, light, hot, time_delta))
+
+def read_temp_and_humi():
+    global temp, humi
+    try:
+        temp, humi = dhtx.get_dht_tempandhum('dht11', 17)
+        set_temp(temp)
+        set_humid(humi)
+    except Exception as e:
+        if 'err' not in str(oled_line_2):
+            set_temp('err ' + str(temp))
+        if 'err' not in str(oled_line_3):
+            set_humid('err ' + str(humi))
+        # temp = humi = 0
+        print(e)
+
+    refresh_oled()
+
+
+def receive_package_task(data):
+    try:
+        control = control_package.ControlPackage.from_dict(json.loads(data))
+        # control = reporter.get_control()
+        print("beeper", control.beeper)
+        print("light", control.light)
+        if control.beeper:
+            mymusic.pitch(13)
+        else:
+            mymusic.pitch(13, -1)
+        global blink_on
+        blink_on = control.light
+
+    except Exception as e:
+        print(e)
+
+def send_package_task():
+    global queue
+    if len(queue) > 3:
+        mqueue = queue
+        queue = []
+        try:
+            set_oled_msg("Sending {}".format(len(mqueue)))
+            result = reporter.send(mqueue)
+            set_oled_msg("Sent:{},st:{}".format(len(mqueue), result.status_code))
+            mqueue.clear()
+
+            receive_package_task(result.text)
+            
+        except Exception as e:
+            set_oled_msg("Err wl sdg " + str(e))
+            t = queue
+            queue = mqueue
+            queue.extend(t)
+
+import mymusic
+RGB = [machine.Pin(x, machine.Pin.OUT) for x in [0]] # 0, 2, 4
+blink_on = False
+
+def blink():
+    while True:
+        if blink_on:
+            for e in RGB:
+                e.value(1 - e.value())
+        else:
+            for e in RGB:
+                e.value(0)
+        time.sleep(0.1)
+
+def networking_thread():
+    timer2 = timer.Timer()
+    timer2.push(send_package_task, (), 1)
+    timer2.push(read_temp_and_humi, (), 2)
     
+    while True:
+        timer2.check_round()
+        time.sleep(0.01)
 
 def loop_thread():
+    timer1 = timer.Timer()
+    timer1.push(read_display_task, (), 1)
     while True:
-        timer.check_round()
-        pass
+        timer1.check_round()
+        time.sleep(0.01)
 
-
-def send_package_thread():
-    pass
 
 if __name__ == "__main__":
-    timer.push(display, (), 1)
-    _thread.start_new_thread(send_package_thread, ())
+    set_oled_msg('Connecting')
+    miot.do_connect("JackLaptop", "12345678")
+    # miot.do_connect("Jiangkun", "87654321")
+    # miot.do_connect("hhhhh", "cdy20011201")
+    # miot.do_connect("YourLaptop", "12345678")
+
+    set_oled_msg('Connected')
+    t1 = time.time()
+    re = reporter.get_clock()
+    mid = int(round(float(re.text)))
+    t2 = time.time()
+    time_delta = mid - (t1 + t2) // 2
+    set_oled_msg('Ping code ' + str(re.status_code))
+
+    _thread.start_new_thread(networking_thread, ())
+    _thread.start_new_thread(blink, ())
     loop_thread()

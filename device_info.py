@@ -11,5 +11,4 @@ class DeviceInfo:
             return self.data[-1]
         return None
     def push_package(self, data):
-        data['time'] = time.time()
         self.data.append(data)

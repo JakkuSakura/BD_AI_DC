@@ -6,6 +6,7 @@ import device.control_package
 import timer
 from device.control_package import ControlPackage
 
+
 def g(x, y, default=""):
     return x[y] if y in x else default
 
@@ -18,35 +19,38 @@ class Monitor:
     def __init__(self):
         self.device_list = []
         self.alive_time = 10  # seconds
-        self.warn_time = 60 # seconds
-        self.depr_time = 60 # seconds
+        self.warn_time = 60  # seconds
+        self.depr_time = 60  # seconds
         self.problematic_device_list = []
 
     def is_prob(self, package):
-        s = bool(g(package, 'fire', False))
+        s = int(g(package, 'fire', 10000)) < 2000
         # print(s)
         return s
+
     def depr_device(self, device):
+        self.problematic_device_list.remove(device)
         device.deprtime = time.time()
 
-    def receive(self, data):
-        # print("Received")
+    def receive_one(self, data):
         for e in self.device_list:
             if e.machine_id == data['machine_id']:
                 e.push_package(data)
-                if self.is_prob(data):
+                if self.is_prob(data) and time.time() - e.deprtime > self.depr_time:
                     if e not in self.problematic_device_list:
                         self.problematic_device_list.append(e)
                         e.warntime = time.time()
-                elif e in self.problematic_device_list and (time.time() - e.warntime > self.warn_time or time.time() - e.deprtime < self.depr_time):
+                elif e in self.problematic_device_list and time.time() - e.warntime > self.warn_time:
                     self.problematic_device_list.remove(e)
                 break
         else:
             d = device_info.DeviceInfo(data['machine_id'])
             self.device_list.append(d)
             d.push_package(data)
-        # print(data)
-        # print(len(self.device_list))
+
+    def receive(self, data):
+        for each in data:
+            self.receive_one(each)
 
     def get_device_info(self, device):
         package = device.get_latest_package()
@@ -68,7 +72,7 @@ class Monitor:
         return None
 
     def calc_control(self, device):
-        if time.time() - device.deprtime > self.depr_time and self.is_prob(device.get_latest_package()):
+        if device in self.problematic_device_list:
             beeper = True
             light = True
         else:

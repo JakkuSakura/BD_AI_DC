@@ -32,7 +32,7 @@ def do_connect(id,password):
     if ap_if.active():
         ap_if.active(False)
     if not sta_if.isconnected():
-        print('connecting to network...')
+        print('connecting to network', id, password)
     sta_if.active(True)
     sta_if.connect(id, password)
     while not sta_if.isconnected():
